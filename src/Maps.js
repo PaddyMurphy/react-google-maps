@@ -34,7 +34,6 @@ class Maps extends Component {
     this.map = map;
     this.originPlaceId = null;
     this.destinationPlaceId = null;
-    this.travelMode = 'DRIVING';
     this.directionsService = new google.maps.DirectionsService();
     this.directionsDisplay = new google.maps.DirectionsRenderer();
     this.directionsDisplay.setMap(map);
@@ -79,7 +78,7 @@ class Maps extends Component {
     this.directionsService.route({
       origin: {'placeId': this.originPlaceId},
       destination: {'placeId': this.destinationPlaceId},
-      travelMode: this.travelMode
+      travelMode: 'DRIVING'
     }, function(response, status) {
       if (status === 'OK') {
         that.directionsDisplay.setDirections(response);
