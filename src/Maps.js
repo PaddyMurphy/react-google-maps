@@ -1,6 +1,9 @@
 /* eslint-disable no-undef, no-unused-vars */
 import React, { Component } from 'react'
 import PropTypes from 'prop-types'
+import googleMapsLoader from 'react-google-maps-loader'
+
+const GOOGLE_MAPS_API_KEY = 'AIzaSyDkxXw_KQ_7aMGh-Yo601XShmTWHkpofw8'
 // TODO: import bulma
 // asyc load gmaps
 // drop map pin on first input
@@ -11,12 +14,23 @@ class Maps extends Component {
     super(props)
 
     this.state = {
-      error: false
+      map: null
     }
   }
 
   componentDidMount() {
-    // TODO: properly async load or catch and retry
+    if (this.props.googleMaps) {
+      this.initMap()
+    }
+  }
+
+  componentDidUpdate(prevProps) {
+    if (!prevProps.googleMaps && this.props.googleMaps) {
+      this.initMap()
+    }
+  }
+
+  initMap() {
     let map = new google.maps.Map(document.getElementById('map'), {
       mapTypeControl: false,
       center: {lat: 30.2672, lng: -97.743},
@@ -25,6 +39,7 @@ class Maps extends Component {
 
     // new AutocompleteDirectionsHandler(map);
     this.autocompleteInput(map);
+    this.setState({map})
   }
 
   autocompleteInput(map) {
@@ -54,8 +69,10 @@ class Maps extends Component {
   setupPlaceChangedListener(autocomplete, mode) {
     let that = this;
     autocomplete.bindTo('bounds', this.map);
+    // listen to change events
     autocomplete.addListener('place_changed', function() {
       let place = autocomplete.getPlace();
+      // TODO: handle error messaging
       if (!place.place_id) {
         window.alert("Please select an option from the dropdown list.");
         return;
@@ -94,6 +111,8 @@ class Maps extends Component {
   // }
 
   render() {
+    const {googleMaps} = this.props
+
     return (
       <div>
         <div className="controls">
@@ -117,4 +136,8 @@ class Maps extends Component {
   }
 }
 
-export default Maps;
+// export default Maps;
+export default googleMapsLoader(Maps, {
+  libraries: ['places'],
+  key: GOOGLE_MAPS_API_KEY,
+})
