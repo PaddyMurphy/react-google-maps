@@ -105,13 +105,14 @@ class Maps extends Component {
     });
   };
 
-  // event handler for inputs
-  // handleInputChange = (e) => {
-  //   console.log(e.target.value);
-  // }
-
   render() {
-    const {googleMaps} = this.props
+    let display = null
+
+    if (this.props.googleMaps) {
+      display = <div id="map" />
+    } else {
+      display = <div className="loading"><div className='spinner'></div></div>
+    }
 
     return (
       <div>
@@ -130,13 +131,12 @@ class Maps extends Component {
             placeholder="Destination location" />
         </div>
 
-        <div id="map"></div>
+        {display}
       </div>
     );
   }
 }
 
-// export default Maps;
 export default googleMapsLoader(Maps, {
   libraries: ['places'],
   key: GOOGLE_MAPS_API_KEY,
