@@ -1,5 +1,6 @@
 {
   "name": "react-google-maps",
+  "homepage": "https://mountaindrawn.com/react-google-maps",
   "version": "0.1.0",
   "private": true,
   "dependencies": {
