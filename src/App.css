@@ -13,6 +13,10 @@
 
 .controls--input {
   width: 300px;
+  position: absolute;
+  // offscreen until gmaps loaded
+  top: -9999px;
+  left: -9999px;
 }
 
 .controls--input:nth-child(n+2) {

@@ -1,32 +1,36 @@
 /* eslint-disable no-undef, no-unused-vars */
-import React, { Component } from 'react'
-import PropTypes from 'prop-types'
-import googleMapsLoader from 'react-google-maps-loader'
+import React, { Component } from 'react';
+import Axios from 'axios';
+import googleMapsLoader from 'react-google-maps-loader';
 
-const GOOGLE_MAPS_API_KEY = 'AIzaSyDkxXw_KQ_7aMGh-Yo601XShmTWHkpofw8'
+const GOOGLE_MAPS_API_KEY = 'AIzaSyDkxXw_KQ_7aMGh-Yo601XShmTWHkpofw8';
+const GOOGLE_MAPS_DISTANCE_API_KEY = 'AIzaSyAmj_-E1IKIh_N00XYI5Qeozzi_LBArl3o';
+const DISTANCE_API_URL = 'https://maps.googleapis.com/maps/api/distancematrix/json';
 // TODO: import bulma
-// asyc load gmaps
+// add sass support
 // drop map pin on first input
 
 class Maps extends Component {
 
   constructor(props) {
-    super(props)
+    super(props);
 
     this.state = {
-      map: null
+      map: null,
+      routeTime: null,
+      routeDistance: null
     }
   }
 
   componentDidMount() {
     if (this.props.googleMaps) {
-      this.initMap()
+      this.initMap();
     }
   }
 
   componentDidUpdate(prevProps) {
     if (!prevProps.googleMaps && this.props.googleMaps) {
-      this.initMap()
+      this.initMap();
     }
   }
 
@@ -77,6 +81,7 @@ class Maps extends Component {
         window.alert('Please select an option from the dropdown list.');
         return;
       }
+
       if (mode === 'ORIG') {
         that.originPlaceId = place.place_id;
         // TODO: set first marker
@@ -102,6 +107,8 @@ class Maps extends Component {
     }, function(response, status) {
       if (status === 'OK') {
         that.directionsDisplay.setDirections(response);
+        // calculate distance and display
+        that.calculateDistance(response);
       } else {
         // TODO: handle error instead of alert
         window.alert('Directions request failed due to ' + status);
@@ -109,10 +116,33 @@ class Maps extends Component {
     });
   };
 
+  calculateDistance(response) {
+    const that = this;
+    // TODO: display time & distance
+    //       display alternate routes
+    Axios.get(DISTANCE_API_URL, {
+      params: {
+        key: GOOGLE_MAPS_DISTANCE_API_KEY,
+        origins: 'place_id:' + that.originPlaceId,
+        destinations: 'place_id:' + that.destinationPlaceId
+      }
+    })
+    .then(response => {
+      console.log(response.data.rows[0].elements[0]);
+      that.setState({
+        routeTime: response.data.rows[0].elements[0].duration.text,
+        routeDistance: response.data.rows[0].elements[0].distance.text
+      })
+    })
+    .catch(error => {
+      console.log(error);
+    });
+  }
+
   removePlaceMarker() {
     // remove existing markers
     if (this.initialMarker) {
-      console.log(this.initialMarker);
+      // console.log(this.initialMarker);
       this.initialMarker.setMap(null);
     }
   }
@@ -120,7 +150,7 @@ class Maps extends Component {
   addPlaceMarker(placeId) {
     const that = this;
     let service = new google.maps.places.PlacesService(that.map);
-
+    // clear existing marker
     that.removePlaceMarker();
 
     service.getDetails({
@@ -128,6 +158,8 @@ class Maps extends Component {
     }, function (result, status) {
         that.initialMarker = new google.maps.Marker({
           map: that.map,
+          draggable: true,
+          animation: google.maps.Animation.DROP,
           place: {
             placeId: placeId,
             location: result.geometry.location
