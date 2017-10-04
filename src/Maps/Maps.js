@@ -9,13 +9,12 @@ const GOOGLE_MAPS_API_KEY = 'AIzaSyDkxXw_KQ_7aMGh-Yo601XShmTWHkpofw8';
 const GOOGLE_MAPS_DISTANCE_API_KEY = 'AIzaSyAmj_-E1IKIh_N00XYI5Qeozzi_LBArl3o';
 const DISTANCE_API_URL = 'https://maps.googleapis.com/maps/api/distancematrix/json';
 // TODO:
-// style inputs stacked with time/distance below
+// selectable alternate routes
 // drop map pin on first input (using places?)
 //   currently faking it with a marker
 // allow moving pins and recalc
 //   update inputs with new location
 //   https://developers.google.com/maps/documentation/javascript/examples/directions-draggable
-// display distance and time in infobox
 
 class Maps extends Component {
 
@@ -115,17 +114,17 @@ class Maps extends Component {
     if (!this.originPlaceId || !this.destinationPlaceId) {
       return;
     }
-    var that = this;
+
+    const that = this;
 
     this.directionsService.route({
       origin: {'placeId': this.originPlaceId},
       destination: {'placeId': this.destinationPlaceId},
       travelMode: 'DRIVING',
+      provideRouteAlternatives: true,
     }, function(response, status) {
       if (status === 'OK') {
-        that.directionsDisplay.setDirections(response);
-        // calculate distance and display
-        that.calculateDistance(response);
+        that.displayRoutes(response);
       } else {
         // TODO: handle error instead of alert
         window.alert('Directions request failed due to ' + status);
@@ -133,19 +132,43 @@ class Maps extends Component {
     });
   };
 
+  displayRoutes(response) {
+    // display route and alternatives
+    const that = this;
+
+    // skip first route and display secondary
+    for (var i = 1, len = response.routes.length; i < len; i++) {
+      new google.maps.DirectionsRenderer({
+          map: that.map,
+          directions: response,
+          draggable: true,
+          routeIndex: i,
+          polylineOptions: {
+            strokeColor: '#AFAFAF',
+            strokeWeight: 6,
+            strokeOpacity: 0.7
+          }
+      });
+    }
+
+    // set primary route on top
+    that.directionsDisplay.setDirections(response);
+    // calculate distance of primary route and display
+    that.calculateDistance(response);
+  }
+
   calculateDistance(response) {
     const that = this;
-    // TODO: display time & distance
-    //       display alternate routes
+    // calculate distance/time and setState
     Axios.get(DISTANCE_API_URL, {
       params: {
         key: GOOGLE_MAPS_DISTANCE_API_KEY,
         origins: 'place_id:' + that.originPlaceId,
-        destinations: 'place_id:' + that.destinationPlaceId
+        destinations: 'place_id:' + that.destinationPlaceId,
+        units: 'imperial'
       }
     })
     .then(response => {
-      console.log(response.data.rows[0].elements[0]);
       that.setState({
         routeTime: response.data.rows[0].elements[0].duration.text,
         routeDistance: response.data.rows[0].elements[0].distance.text
@@ -193,6 +216,12 @@ class Maps extends Component {
       }
     )
 
+    let infoboxClasses = Classnames (
+      'control controls--infobox', {
+      'is-hidden': this.state.routeTime && this.state.routeDistance ? false : true
+      }
+    )
+
     let display = <div className="loading"><div className='spinner'></div></div>
 
     if (this.props.googleMaps) {
@@ -211,6 +240,15 @@ class Maps extends Component {
             className={destinationClasses}
             type="text"
             placeholder="Destination location" />
+
+          <div className={infoboxClasses}>
+            <div className="tags has-addons">
+              <span className="tag is-black">Time</span>
+              <span className="tag is-info">{this.state.routeTime}</span>
+              <span className="tag is-black">Distance</span>
+              <span className="tag is-info">{this.state.routeDistance}</span>
+            </div>
+          </div>
         </div>
 
         {display}
