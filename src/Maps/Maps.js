@@ -2,19 +2,17 @@
 import React, { Component } from 'react';
 import Axios from 'axios';
 import Classnames from 'classnames';
-import googleMapsLoader from 'react-google-maps-loader';
+import GoogleMapsLoader from 'react-google-maps-loader';
 import './Maps.css';
+import MapStyles from '../mapStyles.json';
 
 const GOOGLE_MAPS_API_KEY = 'AIzaSyDkxXw_KQ_7aMGh-Yo601XShmTWHkpofw8';
 const GOOGLE_MAPS_DISTANCE_API_KEY = 'AIzaSyAmj_-E1IKIh_N00XYI5Qeozzi_LBArl3o';
 const DISTANCE_API_URL = 'https://maps.googleapis.com/maps/api/distancematrix/json';
 // TODO:
 // selectable alternate routes
-// drop map pin on first input (using places?)
-//   currently faking it with a marker
 // allow moving pins and recalc
-//   update inputs with new location
-//   https://developers.google.com/maps/documentation/javascript/examples/directions-draggable
+//   update inputs with new location (call route again)
 
 class Maps extends Component {
 
@@ -23,9 +21,8 @@ class Maps extends Component {
 
     this.state = {
       map: null,
-      startAddress: null,
-      destinationAddress: null,
       showDestinationInput: false,
+      autocompleteError: false,
       routeTime: null,
       routeDistance: null
     }
@@ -47,12 +44,14 @@ class Maps extends Component {
     let map = new google.maps.Map(document.getElementById('map'), {
       mapTypeControl: false,
       center: {lat: 30.2672, lng: -97.743},
-      zoom: 13
+      zoom: 13,
+      styles: MapStyles
     });
 
     this.initialMarker = null;
     this.autocompleteInput(map);
     this.setState({map});
+    this.marked = false;
   }
 
   autocompleteInput(map) {
@@ -78,21 +77,49 @@ class Maps extends Component {
     let destinationAutocomplete = new google.maps.places.Autocomplete(
         destinationInput, {placeIdOnly: true});
 
+    // update distance/time and inputs
+    this.directionsDisplay.addListener('directions_changed', function(data) {
+      if(typeof this.dragResult !== 'undefined') {
+        that.updateRoute(this.dragResult);
+      }
+    });
+
     this.setupPlaceChangedListener(originAutocomplete, 'ORIG');
     this.setupPlaceChangedListener(destinationAutocomplete, 'DEST');
 
     this.map.controls[google.maps.ControlPosition.TOP_LEFT].push(controls);
   }
 
+  updateRoute(dragResult) {
+    // update time / distance after dragging
+    // currently only on primary route
+    let newResult = dragResult.routes[0].legs[0].steps[0];
+    // NOTE: call route instead after setting originPlaceId & destinationPlaceId
+    this.setState({
+      routeTime: newResult.duration.text,
+      routeDistance: newResult.distance.text
+    })
+  }
+
   setupPlaceChangedListener(autocomplete, mode) {
     let that = this;
+    // update bounds
     autocomplete.bindTo('bounds', this.map);
     // listen to change events
     autocomplete.addListener('place_changed', function() {
       let place = autocomplete.getPlace();
-      // TODO: handle error messaging
+      let timeout;
+
+      // handle error messaging
       if (!place.place_id) {
-        window.alert('Please select an option from the dropdown list.');
+        // show notification message
+        that.setState({autocompleteError: true})
+        window.clearTimeout(timeout);
+        // hide notification message after 2 secs
+        timeout = setTimeout(function() {
+          that.setState({autocompleteError: false})
+        }, 2000)
+
         return;
       }
 
@@ -106,6 +133,7 @@ class Maps extends Component {
         that.removePlaceMarker();
         that.destinationPlaceId = place.place_id;
       }
+
       that.route();
     });
   };
@@ -136,28 +164,30 @@ class Maps extends Component {
     // display route and alternatives
     const that = this;
 
-    // skip first route and display secondary
-    for (var i = 1, len = response.routes.length; i < len; i++) {
-      new google.maps.DirectionsRenderer({
-          map: that.map,
-          directions: response,
-          draggable: true,
-          routeIndex: i,
-          polylineOptions: {
-            strokeColor: '#AFAFAF',
-            strokeWeight: 6,
-            strokeOpacity: 0.7
-          }
-      });
-    }
-
-    // set primary route on top
+    // set primary route
     that.directionsDisplay.setDirections(response);
     // calculate distance of primary route and display
-    that.calculateDistance(response);
+    that.calculateDistance();
+
+    // TODO: implement alternate routes on shared directionsDisplay
+    //       currently unable to easily clear
+    // skip first route and display secondary
+    // for (var i = 1, len = response.routes.length; i < len; i++) {
+    //   new google.maps.DirectionsRenderer({
+    //       map: that.map,
+    //       directions: response,
+    //       draggable: true,
+    //       routeIndex: i,
+    //       polylineOptions: {
+    //         strokeColor: '#AFAFAF',
+    //         strokeWeight: 6,
+    //         strokeOpacity: 0.7
+    //       }
+    //   });
+    // }
   }
 
-  calculateDistance(response) {
+  calculateDistance() {
     const that = this;
     // calculate distance/time and setState
     Axios.get(DISTANCE_API_URL, {
@@ -182,13 +212,15 @@ class Maps extends Component {
   removePlaceMarker() {
     // remove existing markers
     if (this.initialMarker) {
-      // console.log(this.initialMarker);
       this.initialMarker.setMap(null);
     }
   }
 
   addPlaceMarker(placeId) {
-    // add marker on start location
+    // add marker on start location once
+    if (this.marked) return;
+    this.marked = true;
+
     const that = this;
     let service = new google.maps.places.PlacesService(that.map);
     // clear existing marker
@@ -222,6 +254,12 @@ class Maps extends Component {
       }
     )
 
+    let notificationClasses = Classnames (
+      'notification is-danger', {
+      'is-hidden': this.state.autocompleteError ? false : true
+      }
+    )
+
     let display = <div className="loading"><div className='spinner'></div></div>
 
     if (this.props.googleMaps) {
@@ -229,7 +267,7 @@ class Maps extends Component {
     }
 
     return (
-      <div>
+      <div className="map-container">
         <div className="controls">
           <input
             className="controls--input controls--input-origin input"
@@ -243,12 +281,16 @@ class Maps extends Component {
 
           <div className={infoboxClasses}>
             <div className="tags has-addons">
-              <span className="tag is-black">Time</span>
+              <span className="tag is-dark">Time</span>
               <span className="tag is-info">{this.state.routeTime}</span>
-              <span className="tag is-black">Distance</span>
+              <span className="tag is-dark">Distance</span>
               <span className="tag is-info">{this.state.routeDistance}</span>
             </div>
           </div>
+        </div>
+
+        <div className={notificationClasses}>
+          Please select an option from the dropdown list.
         </div>
 
         {display}
@@ -257,7 +299,7 @@ class Maps extends Component {
   }
 }
 
-export default googleMapsLoader(Maps, {
+export default GoogleMapsLoader(Maps, {
   libraries: ['places'],
   key: GOOGLE_MAPS_API_KEY,
 })
