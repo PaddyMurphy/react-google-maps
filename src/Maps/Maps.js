@@ -1,6 +1,7 @@
 /* eslint-disable no-undef, no-unused-vars */
 import React, { Component } from 'react';
 import Axios from 'axios';
+import Classnames from 'classnames';
 import googleMapsLoader from 'react-google-maps-loader';
 import './Maps.css';
 
@@ -8,11 +9,12 @@ const GOOGLE_MAPS_API_KEY = 'AIzaSyDkxXw_KQ_7aMGh-Yo601XShmTWHkpofw8';
 const GOOGLE_MAPS_DISTANCE_API_KEY = 'AIzaSyAmj_-E1IKIh_N00XYI5Qeozzi_LBArl3o';
 const DISTANCE_API_URL = 'https://maps.googleapis.com/maps/api/distancematrix/json';
 // TODO:
-// import bulma
-// add sass support
+// style inputs stacked with time/distance below
 // drop map pin on first input (using places?)
 //   currently faking it with a marker
 // allow moving pins and recalc
+//   update inputs with new location
+//   https://developers.google.com/maps/documentation/javascript/examples/directions-draggable
 // display distance and time in infobox
 
 class Maps extends Component {
@@ -22,6 +24,9 @@ class Maps extends Component {
 
     this.state = {
       map: null,
+      startAddress: null,
+      destinationAddress: null,
+      showDestinationInput: false,
       routeTime: null,
       routeDistance: null
     }
@@ -52,6 +57,8 @@ class Maps extends Component {
   }
 
   autocompleteInput(map) {
+    const that = this;
+    let controls = document.querySelector('.controls');
     let originInput = document.querySelector('.controls--input-origin');
     let destinationInput = document.querySelector('.controls--input-destination');
 
@@ -59,7 +66,11 @@ class Maps extends Component {
     this.originPlaceId = null;
     this.destinationPlaceId = null;
     this.directionsService = new google.maps.DirectionsService();
-    this.directionsDisplay = new google.maps.DirectionsRenderer();
+    // update directions when dragging icon
+    this.directionsDisplay = new google.maps.DirectionsRenderer({
+      draggable: true,
+      map: that.map
+    });
     this.directionsDisplay.setMap(map);
 
     let originAutocomplete = new google.maps.places.Autocomplete(
@@ -71,8 +82,7 @@ class Maps extends Component {
     this.setupPlaceChangedListener(originAutocomplete, 'ORIG');
     this.setupPlaceChangedListener(destinationAutocomplete, 'DEST');
 
-    this.map.controls[google.maps.ControlPosition.TOP_LEFT].push(originInput);
-    this.map.controls[google.maps.ControlPosition.TOP_LEFT].push(destinationInput);
+    this.map.controls[google.maps.ControlPosition.TOP_LEFT].push(controls);
   }
 
   setupPlaceChangedListener(autocomplete, mode) {
@@ -89,8 +99,10 @@ class Maps extends Component {
 
       if (mode === 'ORIG') {
         that.originPlaceId = place.place_id;
-        // TODO: set first marker
+        // set first marker
         that.addPlaceMarker(that.originPlaceId);
+        // show destination input
+        that.setState({showDestinationInput: true});
       } else {
         that.removePlaceMarker();
         that.destinationPlaceId = place.place_id;
@@ -153,11 +165,12 @@ class Maps extends Component {
   }
 
   addPlaceMarker(placeId) {
+    // add marker on start location
     const that = this;
     let service = new google.maps.places.PlacesService(that.map);
     // clear existing marker
     that.removePlaceMarker();
-
+    // set marker based on placeId
     service.getDetails({
         placeId: placeId
     }, function (result, status) {
@@ -170,38 +183,32 @@ class Maps extends Component {
             location: result.geometry.location
           }
         });
-        // TODO: set bounds based on place_id?
-        //       change marker to green to match final
-        console.log(result);
-        // Create new bounds object
-        // let bounds = new google.maps.LatLngBounds();
-        // let geoCode = new google.maps.LatLng();
-        // bounds.extend(geoCode);
-        // //Add new bounds object to map
-        // that.map.fitBounds(bounds);
     });
   }
 
   render() {
-    let display = null
+    let destinationClasses = Classnames (
+      'input controls--input controls--input-destination', {
+      'is-hidden': this.state.showDestinationInput ? false : true
+      }
+    )
+
+    let display = <div className="loading"><div className='spinner'></div></div>
 
     if (this.props.googleMaps) {
-      display = <div id="map" />
-    } else {
-      display = <div className="loading"><div className='spinner'></div></div>
+      display = <div id="map"></div>
     }
 
     return (
       <div>
         <div className="controls">
-
           <input
             className="controls--input controls--input-origin input"
             type="text"
             placeholder="Start location" />
 
           <input
-            className="controls--input controls--input-destination input"
+            className={destinationClasses}
             type="text"
             placeholder="Destination location" />
         </div>

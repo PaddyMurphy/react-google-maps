@@ -4,39 +4,19 @@
 
 .controls
   display: flex
+  width: 100%
   position: absolute
   z-index: 10
   padding: 20px
 
 .controls--input
-  width: 300px
+  min-width: 300px
+  width: 50vw
   position: absolute
-  // offscreen until gmaps loade
-  top: -9999px
-  left: -9999px
+  transition: all 0.3s ease-out
 
 .controls--input:nth-child(n+2)
-  margin-left: 10px
-
-.app--header
-  background-color: white
-  padding: 20px
-  display: flex
-  margin: 0 auto
-  max-width: 800px
-
-.app--input
-  box-sizing: border-box
-  border: 1px solid transparent
-  width: 240px
-  height: 28px
-  margin-top: 10px
-  padding: 0 12px
-  border-radius: 3px
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3)
-  font-size: 14px
-  outline: none
-  text-overflow: ellipses
+  margin-top: 50px
 
 .loading
   margin: 40vh auto 0
@@ -44,6 +24,11 @@
   text-align: center
   width: 100vw
 
+// helpers
+.is-hidden
+  visibility: hidden
+
+// loading spinner
 @keyframes spinner
   to {transform: rotate(360deg)}
 
