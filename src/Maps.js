@@ -37,14 +37,14 @@ class Maps extends Component {
       zoom: 13
     });
 
-    // new AutocompleteDirectionsHandler(map);
+    this.initialMarker = null;
     this.autocompleteInput(map);
-    this.setState({map})
+    this.setState({map});
   }
 
   autocompleteInput(map) {
-    let originInput = document.getElementById('origin-input');
-    let destinationInput = document.getElementById('destination-input');
+    let originInput = document.querySelector('.controls--input-origin');
+    let destinationInput = document.querySelector('.controls--input-destination');
 
     this.map = map;
     this.originPlaceId = null;
@@ -74,12 +74,15 @@ class Maps extends Component {
       let place = autocomplete.getPlace();
       // TODO: handle error messaging
       if (!place.place_id) {
-        window.alert("Please select an option from the dropdown list.");
+        window.alert('Please select an option from the dropdown list.');
         return;
       }
       if (mode === 'ORIG') {
         that.originPlaceId = place.place_id;
+        // TODO: set first marker
+        that.addPlaceMarker(that.originPlaceId);
       } else {
+        that.removePlaceMarker();
         that.destinationPlaceId = place.place_id;
       }
       that.route();
@@ -95,15 +98,52 @@ class Maps extends Component {
     this.directionsService.route({
       origin: {'placeId': this.originPlaceId},
       destination: {'placeId': this.destinationPlaceId},
-      travelMode: 'DRIVING'
+      travelMode: 'DRIVING',
     }, function(response, status) {
       if (status === 'OK') {
         that.directionsDisplay.setDirections(response);
       } else {
+        // TODO: handle error instead of alert
         window.alert('Directions request failed due to ' + status);
       }
     });
   };
+
+  removePlaceMarker() {
+    // remove existing markers
+    if (this.initialMarker) {
+      console.log(this.initialMarker);
+      this.initialMarker.setMap(null);
+    }
+  }
+
+  addPlaceMarker(placeId) {
+    const that = this;
+    let service = new google.maps.places.PlacesService(that.map);
+
+    that.removePlaceMarker();
+
+    service.getDetails({
+        placeId: placeId
+    }, function (result, status) {
+        that.initialMarker = new google.maps.Marker({
+          map: that.map,
+          place: {
+            placeId: placeId,
+            location: result.geometry.location
+          }
+        });
+        // TODO: set bounds based on place_id?
+        //       change marker to green to match final
+        console.log(result);
+        // Create new bounds object
+        // let bounds = new google.maps.LatLngBounds();
+        // let geoCode = new google.maps.LatLng();
+        // bounds.extend(geoCode);
+        // //Add new bounds object to map
+        // that.map.fitBounds(bounds);
+    });
+  }
 
   render() {
     let display = null
@@ -118,15 +158,13 @@ class Maps extends Component {
       <div>
         <div className="controls">
 
-          <input id="origin-input"
-            className="controls--input input"
-            data-type="ORIG"
+          <input
+            className="controls--input controls--input-origin input"
             type="text"
             placeholder="Start location" />
 
-          <input id="destination-input"
-            className="controls--input input"
-            data-type="DEST"
+          <input
+            className="controls--input controls--input-destination input"
             type="text"
             placeholder="Destination location" />
         </div>
