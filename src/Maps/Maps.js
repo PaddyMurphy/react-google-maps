@@ -2,13 +2,18 @@
 import React, { Component } from 'react';
 import Axios from 'axios';
 import googleMapsLoader from 'react-google-maps-loader';
+import './Maps.css';
 
 const GOOGLE_MAPS_API_KEY = 'AIzaSyDkxXw_KQ_7aMGh-Yo601XShmTWHkpofw8';
 const GOOGLE_MAPS_DISTANCE_API_KEY = 'AIzaSyAmj_-E1IKIh_N00XYI5Qeozzi_LBArl3o';
 const DISTANCE_API_URL = 'https://maps.googleapis.com/maps/api/distancematrix/json';
-// TODO: import bulma
+// TODO:
+// import bulma
 // add sass support
-// drop map pin on first input
+// drop map pin on first input (using places?)
+//   currently faking it with a marker
+// allow moving pins and recalc
+// display distance and time in infobox
 
 class Maps extends Component {
 
@@ -135,7 +140,7 @@ class Maps extends Component {
       })
     })
     .catch(error => {
-      console.log(error);
+      console.warn(error);
     });
   }
 
