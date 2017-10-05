@@ -8,7 +8,7 @@ import MapStyles from '../mapStyles.json';
 
 const GOOGLE_MAPS_API_KEY = 'AIzaSyDkxXw_KQ_7aMGh-Yo601XShmTWHkpofw8';
 const GOOGLE_MAPS_DISTANCE_API_KEY = 'AIzaSyAmj_-E1IKIh_N00XYI5Qeozzi_LBArl3o';
-const DISTANCE_API_URL = 'https://maps.googleapis.com/maps/api/distancematrix/json';
+const DISTANCE_API_URL = 'https://cors-anywhere.herokuapp.com/https://maps.googleapis.com/maps/api/distancematrix/json';
 let errorTimeout;
 // TODO:
 // selectable alternate routes
