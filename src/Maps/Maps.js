@@ -9,10 +9,11 @@ import MapStyles from '../mapStyles.json';
 const GOOGLE_MAPS_API_KEY = 'AIzaSyDkxXw_KQ_7aMGh-Yo601XShmTWHkpofw8';
 const GOOGLE_MAPS_DISTANCE_API_KEY = 'AIzaSyAmj_-E1IKIh_N00XYI5Qeozzi_LBArl3o';
 const DISTANCE_API_URL = 'https://maps.googleapis.com/maps/api/distancematrix/json';
+let errorTimeout;
 // TODO:
 // selectable alternate routes
 // allow moving pins and recalc
-//   update inputs with new location (call route again)
+//   update inputs with new location
 
 class Maps extends Component {
 
@@ -22,7 +23,7 @@ class Maps extends Component {
     this.state = {
       map: null,
       showDestinationInput: false,
-      autocompleteError: false,
+      errorMessage: null,
       routeTime: null,
       routeDistance: null
     }
@@ -108,30 +109,23 @@ class Maps extends Component {
     // listen to change events
     autocomplete.addListener('place_changed', function() {
       let place = autocomplete.getPlace();
-      let timeout;
 
       // handle error messaging
       if (!place.place_id) {
         // show notification message
-        that.setState({autocompleteError: true})
-        window.clearTimeout(timeout);
-        // hide notification message after 2 secs
-        timeout = setTimeout(function() {
-          that.setState({autocompleteError: false})
-        }, 2000)
-
+        that.handleError('Please select an option from the dropdown list.');
         return;
       }
 
       if (mode === 'ORIG') {
-        that.originPlaceId = place.place_id;
+        that.originPlaceId = {'placeId': place.place_id};
         // set first marker
-        that.addPlaceMarker(that.originPlaceId);
+        that.addPlaceMarker(place.place_id);
         // show destination input
         that.setState({showDestinationInput: true});
       } else {
         that.removePlaceMarker();
-        that.destinationPlaceId = place.place_id;
+        that.destinationPlaceId = {'placeId': place.place_id};
       }
 
       that.route();
@@ -146,16 +140,16 @@ class Maps extends Component {
     const that = this;
 
     this.directionsService.route({
-      origin: {'placeId': this.originPlaceId},
-      destination: {'placeId': this.destinationPlaceId},
+      origin: this.originPlaceId,
+      destination: this.destinationPlaceId,
       travelMode: 'DRIVING',
       provideRouteAlternatives: true,
     }, function(response, status) {
       if (status === 'OK') {
         that.displayRoutes(response);
       } else {
-        // TODO: handle error instead of alert
-        window.alert('Directions request failed due to ' + status);
+        // display error message
+        that.handleError('Directions request failed due to ' + status);
       }
     });
   };
@@ -170,9 +164,10 @@ class Maps extends Component {
     that.calculateDistance();
 
     // TODO: implement alternate routes on shared directionsDisplay
-    //       currently unable to easily clear
+    //       currently unable to clear routes on change
+
     // skip first route and display secondary
-    // for (var i = 1, len = response.routes.length; i < len; i++) {
+    // for (let i = 1, len = response.routes.length; i < len; i++) {
     //   new google.maps.DirectionsRenderer({
     //       map: that.map,
     //       directions: response,
@@ -193,8 +188,8 @@ class Maps extends Component {
     Axios.get(DISTANCE_API_URL, {
       params: {
         key: GOOGLE_MAPS_DISTANCE_API_KEY,
-        origins: 'place_id:' + that.originPlaceId,
-        destinations: 'place_id:' + that.destinationPlaceId,
+        origins: 'place_id:' + that.originPlaceId.placeId,
+        destinations: 'place_id:' + that.destinationPlaceId.placeId,
         units: 'imperial'
       }
     })
@@ -207,6 +202,18 @@ class Maps extends Component {
     .catch(error => {
       console.warn(error);
     });
+  }
+
+  handleError(message) {
+    const that = this;
+
+    this.setState({errorMessage: message});
+
+    window.clearTimeout(errorTimeout);
+    // hide notification message after 2 secs
+    errorTimeout = setTimeout(function() {
+      that.setState({errorMessage: null})
+    }, 2000)
   }
 
   removePlaceMarker() {
@@ -256,7 +263,7 @@ class Maps extends Component {
 
     let notificationClasses = Classnames (
       'notification is-danger', {
-      'is-hidden': this.state.autocompleteError ? false : true
+      'is-hidden': this.state.errorMessage ? false : true
       }
     )
 
@@ -290,7 +297,7 @@ class Maps extends Component {
         </div>
 
         <div className={notificationClasses}>
-          Please select an option from the dropdown list.
+          {this.state.errorMessage}
         </div>
 
         {display}
