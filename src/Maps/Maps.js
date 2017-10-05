@@ -1,14 +1,11 @@
 /* eslint-disable no-undef, no-unused-vars */
 import React, { Component } from 'react';
-import Axios from 'axios';
 import Classnames from 'classnames';
 import GoogleMapsLoader from 'react-google-maps-loader';
 import './Maps.css';
 import MapStyles from '../mapStyles.json';
 
 const GOOGLE_MAPS_API_KEY = 'AIzaSyDkxXw_KQ_7aMGh-Yo601XShmTWHkpofw8';
-const GOOGLE_MAPS_DISTANCE_API_KEY = 'AIzaSyAmj_-E1IKIh_N00XYI5Qeozzi_LBArl3o';
-const DISTANCE_API_URL = 'https://cors-anywhere.herokuapp.com/https://maps.googleapis.com/maps/api/distancematrix/json';
 let errorTimeout;
 // TODO:
 // selectable alternate routes
@@ -96,10 +93,7 @@ class Maps extends Component {
     // currently only on primary route
     let newResult = dragResult.routes[0].legs[0].steps[0];
     // NOTE: call route instead after setting originPlaceId & destinationPlaceId
-    this.setState({
-      routeTime: newResult.duration.text,
-      routeDistance: newResult.distance.text
-    })
+    this.setTimeDistance(newResult.duration.text, newResult.distance.text);
   }
 
   setupPlaceChangedListener(autocomplete, mode) {
@@ -157,11 +151,12 @@ class Maps extends Component {
   displayRoutes(response) {
     // display route and alternatives
     const that = this;
+    const stats = response.routes[0].legs[0];
 
     // set primary route
     that.directionsDisplay.setDirections(response);
-    // calculate distance of primary route and display
-    that.calculateDistance();
+    // set route time and distance
+    that.setTimeDistance(stats.duration.text, stats.distance.text);
 
     // TODO: implement alternate routes on shared directionsDisplay
     //       currently unable to clear routes on change
@@ -180,31 +175,6 @@ class Maps extends Component {
     //       }
     //   });
     // }
-  }
-
-  calculateDistance() {
-    const that = this;
-    // calculate distance/time and setState
-    Axios.get(DISTANCE_API_URL, {
-      params: {
-        key: GOOGLE_MAPS_DISTANCE_API_KEY,
-        origins: 'place_id:' + that.originPlaceId.placeId,
-        destinations: 'place_id:' + that.destinationPlaceId.placeId,
-        units: 'imperial'
-      },
-      headers: {
-        'Access-Control-Allow-Origin': '*'
-      }
-    })
-    .then(response => {
-      that.setState({
-        routeTime: response.data.rows[0].elements[0].duration.text,
-        routeDistance: response.data.rows[0].elements[0].distance.text
-      })
-    })
-    .catch(error => {
-      console.warn(error);
-    });
   }
 
   handleError(message) {
@@ -249,6 +219,13 @@ class Maps extends Component {
           }
         });
     });
+  }
+
+  setTimeDistance(time, distance) {
+    this.setState({
+      routeTime: time,
+      routeDistance: distance
+    })
   }
 
   render() {
